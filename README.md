@@ -1,4 +1,4 @@
-# Dither-Pro# DITHER PRO // ULTIMATE
+DITHER PRO // ULTIMATE
 
 A high-performance, single-file WebGL workstation for retro image processing, dithering, and professional color grading. This tool runs entirely in the browser using the GPU, requiring no installation or external dependencies.
 
