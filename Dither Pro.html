@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DITHER_PRO // ULTIMATE</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --void: #020202;
+            --panel: #0a0a0a;
+            --sulfur: #ffb300;
+            --dim-sulfur: #996b00;
+            --silver: #666;
+            --white: #e0e0e0;
+            --alert: #ff3333;
+            --font: 'Courier New', 'Monaco', monospace;
+        }
+
+        * { box-sizing: border-box; user-select: none; outline: none; }
+        
+        body { 
+            margin: 0; background: var(--void); color: var(--sulfur); 
+            font-family: var(--font); height: 100vh; overflow: hidden; 
+            font-size: 10px; text-transform: uppercase; font-weight: bold;
+        }
+
+        ::-webkit-scrollbar { width: 6px; background: var(--void); }
+        ::-webkit-scrollbar-thumb { background: var(--sulfur); }
+
+        #main-grid { display: grid; grid-template-columns: 320px 1fr 320px; height: 100%; }
+        
+        aside { 
+            background: var(--panel); 
+            border-right: 1px solid #222; 
+            border-left: 1px solid #222;
+            display: flex; flex-direction: column; 
+            overflow-y: auto;
+        }
+        
+        /* VIEWPORT FIX: Flexbox centers the canvas, Canvas fits content exactly */
+        #viewport {
+            position: relative; background: #000;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+            background-image: radial-gradient(#151515 15%, transparent 16%);
+            background-size: 16px 16px;
+        }
+
+        canvas { 
+            max-width: 100%; max-height: 100%; 
+            image-rendering: pixelated; 
+            box-shadow: 0 0 0 1px #333;
+            background: #000;
+        }
+
+        .header {
+            background: var(--sulfur); color: #000; padding: 10px;
+            font-size: 13px; letter-spacing: 2px; text-align: center;
+            border-bottom: 2px solid #000; font-weight: 900;
+        }
+
+        .section { border-bottom: 1px solid #222; }
+        
+        .sec-head {
+            padding: 8px 10px; background: #111; color: #888;
+            border-bottom: 1px solid #222; cursor: pointer;
+            display: flex; justify-content: space-between;
+        }
+        .sec-head:hover { background: #1a1a1a; color: var(--white); }
+        .sec-head span { color: var(--sulfur); }
+
+        .sec-body { padding: 10px; display: block; }
+        .sec-body.collapsed { display: none; }
+
+        .row { display: flex; gap: 4px; margin-bottom: 8px; }
+
+        label { display: flex; justify-content: space-between; color: #888; margin: 8px 0 2px 0; }
+        .val { color: var(--sulfur); }
+
+        button {
+            flex: 1; background: #080808; border: 1px solid #444; color: var(--white);
+            padding: 8px; cursor: pointer; font-family: var(--font); font-size: 10px;
+            text-transform: uppercase; transition: all 0.1s;
+        }
+        button:hover { background: var(--sulfur); color: #000; border-color: var(--sulfur); }
+        button:active { background: #fff; }
+        button:disabled { border-color: #222; color: #333; cursor: not-allowed; background: #050505; }
+        
+        button.rnd { flex: 0 0 30px; border-left: none; background: rgba(0,0,0,0.2); }
+        button.rnd:hover { background: #fff; color: #000; }
+
+        select {
+            width: 100%; background: #000; color: var(--white); 
+            border: 1px solid #333; padding: 6px; 
+            font-family: var(--font); font-size: 10px; margin-bottom: 4px;
+        }
+        select:focus { border-color: var(--sulfur); }
+
+        /* COMPACT SLIDERS */
+        input[type=range] {
+            width: 100%; -webkit-appearance: none; background: #222; 
+            height: 4px; margin: 4px 0; cursor: col-resize;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 10px; height: 10px; 
+            background: var(--sulfur); border: 1px solid #000; 
+        }
+        input[type=range]:hover::-webkit-slider-thumb { background: #fff; transform: scale(1.2); }
+
+        /* PALETTE GRID */
+        .pal-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: #222; border: 1px solid #333; margin-top: 5px; }
+        .pal-cell { height: 18px; cursor: pointer; opacity: 0.8; }
+        .pal-cell:hover { opacity: 1; transform: scale(1.1); z-index: 2; border: 1px solid #fff; }
+
+        #audio-viz { height: 30px; display: flex; align-items: flex-end; gap: 1px; margin-bottom: 8px; border: 1px solid #222; background: #000; }
+        .bar { flex: 1; background: var(--sulfur); min-height: 1px; }
+
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #000; border: 1px solid var(--sulfur); padding: 20px;
+            z-index: 100; display: none; color: var(--sulfur);
+        }
+
+        .grp-label { color: var(--sulfur); font-weight: bold; border-bottom: 1px solid #333; margin: 10px 0 5px 0; padding-bottom: 2px; }
+    </style>
+</head>
+<body>
+
+<div id="main-grid">
+    <aside>
+        <div class="header">INPUT_DECK <button class="rnd" onclick="rndLeft()">[R]</button></div>
+        
+        <!-- SOURCE -->
+        <div class="section"><div class="sec-head">01 // SIGNAL SOURCE</div><div class="sec-body">
+            <div class="row"><button onclick="document.getElementById('f-in').click()">LOAD FILE</button><button onclick="initCam()">WEBCAM LINK</button></div>
+            <input type="file" id="f-in" hidden accept="image/*,video/*">
+            <div class="row"><button onclick="document.getElementById('b-in').click()">BATCH ADD</button><button id="btn-batch" onclick="runBatch()" disabled>BATCH RUN (0)</button></div>
+            <input type="file" id="b-in" hidden multiple accept="image/*">
+        </div></div>
+
+        <!-- RESOLUTION -->
+        <div class="section"><div class="sec-head">02 // RESOLUTION</div><div class="sec-body">
+            <select id="res-mode" onchange="uiUpdate()"><option value="0">NATIVE (SOURCE)</option><option value="1">FIXED WIDTH</option><option value="2">DOWNSCALE FACTOR</option></select>
+            <div id="ui-width"><label>TARGET WIDTH <span class="val" id="v-width">320px</span></label><input type="range" id="width" min="64" max="1920" step="16" value="320"></div>
+            <div id="ui-scale" style="display:none"><label>FACTOR <span class="val" id="v-scale">4x</span></label><input type="range" id="scale" min="1" max="16" step="1" value="4"></div>
+            <label>PRE-BLUR (SOFTEN) <span class="val" id="v-blur">0.0</span></label><input type="range" id="blur" min="0" max="4" step="0.1" value="0">
+        </div></div>
+
+        <!-- PRO COLOR -->
+        <div class="section"><div class="sec-head">03 // PRO COLORIST</div><div class="sec-body">
+            
+            <div class="grp-label">LUT PROFILE</div>
+            <select id="lut">
+                <option value="0">PASSTHROUGH</option>
+                <optgroup label="FILM STOCK">
+                    <option value="1">KODAK PORTRA 400</option><option value="2">KODAK GOLD 200</option><option value="3">FUJI VELVIA 50</option>
+                    <option value="4">ILFORD HP5 (B&W)</option><option value="5">CINESTILL 800T</option>
+                </optgroup>
+                <optgroup label="CINEMATIC">
+                    <option value="6">TEAL & ORANGE</option><option value="7">MATRIX (GREEN)</option><option value="8">BLADE RUNNER (BLUE)</option>
+                    <option value="9">VAPORWAVE (PINK)</option><option value="13">DUNE (DESERT)</option>
+                </optgroup>
+                <optgroup label="UTILITY">
+                    <option value="10">THERMAL CAM</option><option value="11">NIGHT VISION</option><option value="12">NEGATIVE</option>
+                </optgroup>
+            </select>
+            <label>LUT MIX <span class="val" id="v-mix">100%</span></label><input type="range" id="mix" min="0" max="1" step="0.05" value="1.0">
+
+            <div class="grp-label">PRIMARY WHEELS</div>
+            <label>LIFT (SHADOWS) <span class="val" id="v-lift">0.0</span></label><input type="range" id="lift" min="-0.5" max="0.5" step="0.01" value="0.0">
+            <label>GAMMA (MIDS) <span class="val" id="v-gamma">1.0</span></label><input type="range" id="gamma" min="0.5" max="2.0" step="0.01" value="1.0">
+            <label>GAIN (HIGHS) <span class="val" id="v-gain">1.0</span></label><input type="range" id="gain" min="0.0" max="2.0" step="0.01" value="1.0">
+
+            <div class="grp-label">BALANCE</div>
+            <label>TEMP (WARM/COOL) <span class="val" id="v-temp">0.0</span></label><input type="range" id="temp" min="-0.5" max="0.5" step="0.01" value="0.0">
+            <label>TINT (MAG/GRN) <span class="val" id="v-tint">0.0</span></label><input type="range" id="tint" min="-0.5" max="0.5" step="0.01" value="0.0">
+            <label>SATURATION <span class="val" id="v-sat">1.0</span></label><input type="range" id="sat" min="0" max="2" step="0.05" value="1.0">
+        </div></div>
+
+        <!-- PALETTE -->
+        <div class="section"><div class="sec-head">04 // QUANTIZER</div><div class="sec-body">
+            <select id="pal-mode" onchange="uiUpdate()"><option value="0">TRUE COLOR (32-BIT)</option><option value="1">LIBRARY</option><option value="2">AUTO EXTRACT</option><option value="3">1-BIT MONOCHROME</option></select>
+            <div id="ui-pal-lib"><div class="pal-grid" id="pal-list"></div><label id="pal-name" style="text-align:center;display:block;margin-top:4px;">SELECT PALETTE</label></div>
+            <div id="ui-pal-auto" style="display:none"><button onclick="extractPal()">EXTRACT COLORS</button><label>COUNT <span class="val" id="v-k">4</span></label><input type="range" id="k" min="2" max="16" step="1" value="4"></div>
+        </div></div>
+    </aside>
+
+    <!-- VIEWPORT -->
+    <main id="viewport"><canvas id="c"></canvas><div id="loading">RENDERING...</div></main>
+
+    <aside style="border-left:none; border-right:1px solid #222;">
+        <div class="header">FX_CORE <button class="rnd" onclick="rndRight()">[R]</button></div>
+        
+        <!-- DITHER -->
+        <div class="section"><div class="sec-head">05 // DITHER KERNEL</div><div class="sec-body">
+            <select id="algo">
+                <optgroup label="ERROR DIFFUSION">
+                    <option value="0">FLOYD-STEINBERG</option><option value="1">ATKINSON</option><option value="2">STUCKI</option>
+                </optgroup>
+                <optgroup label="ORDERED">
+                    <option value="3">BAYER 2x2</option><option value="4">BAYER 4x4</option><option value="5" selected>BAYER 8x8</option><option value="6">BAYER 16x16</option>
+                </optgroup>
+                <optgroup label="SHAPE / NOISE">
+                    <option value="7">BLUE NOISE</option><option value="8">WHITE NOISE</option><option value="9">HALFTONE DOT</option><option value="10">HALFTONE LINE</option><option value="11">VORONOI</option>
+                </optgroup>
+                <optgroup label="PROCEDURAL TEXT">
+                    <option value="12">TXT: ENGLISH (A-Z)</option>
+                    <option value="13">TXT: KANA (JAP)</option>
+                    <option value="14">TXT: HANZI (CHN)</option>
+                    <option value="15">TXT: RUNIC (ALIEN)</option>
+                    <option value="16">TXT: BINARY (0/1)</option>
+                </optgroup>
+            </select>
+            <label>THRESHOLD / AMT <span class="val" id="v-amt">1.0</span></label><input type="range" id="amt" min="0" max="1.5" step="0.01" value="1.0">
+            <label>MATRIX SCALE <span class="val" id="v-scl">1.0</span></label><input type="range" id="scl" min="1" max="16" step="1" value="1.0">
+        </div></div>
+
+        <!-- POST -->
+        <div class="section"><div class="sec-head">06 // POST PROCESS</div><div class="sec-body">
+            <label>SOBEL EDGES <span class="val" id="v-edge">0.0</span></label><input type="range" id="edge" min="0" max="2" step="0.05" value="0">
+            <label>CRT SCANLINE <span class="val" id="v-scan">0.0</span></label><input type="range" id="scan" min="0" max="1" step="0.05" value="0">
+            <label>GLOW BLOOM <span class="val" id="v-bloom">0.0</span></label><input type="range" id="bloom" min="0" max="1" step="0.05" value="0">
+            <label>CHROMATIC AB <span class="val" id="v-ab">0.0</span></label><input type="range" id="ab" min="0" max="10" step="0.1" value="0">
+            <label>GHOST TRAIL <span class="val" id="v-ghost">0.0</span></label><input type="range" id="ghost" min="0" max="0.95" step="0.05" value="0">
+        </div></div>
+
+        <!-- AUDIO -->
+        <div class="section"><div class="sec-head">07 // AUDIO LINK</div><div class="sec-body">
+            <div id="audio-viz"></div><button onclick="initAudio()">LINK MICROPHONE</button>
+            <label>GAIN <span class="val" id="v-sens">1.0</span></label><input type="range" id="sens" min="0" max="5" step="0.1" value="1.0">
+            <label>TARGET</label><select id="a-targ"><option value="0">OFFSET GLITCH</option><option value="1">RGB SPLIT</option><option value="2">DITHER THRESH</option><option value="3">HUE SHIFT</option></select>
+        </div></div>
+
+        <!-- EXPORT -->
+        <div class="section"><div class="sec-head">08 // EXPORT LAB</div><div class="sec-body">
+            <div class="row"><button onclick="saveImg('png')">SAVE PNG</button><button onclick="saveImg('jpg')">SAVE JPG</button></div>
+            <label>VIDEO CONTAINER</label><select id="vid-fmt"><option value="mp4">MP4 (H.264)</option><option value="webm">WEBM (VP9)</option></select>
+            <button id="btn-rec" onclick="toggleRec()" style="margin-top:5px; border-color:var(--alert); color:var(--alert)">START RECORDING</button>
+        </div></div>
+    </aside>
+</div>
+
+<video id="src-vid" loop muted playsinline style="display:none"></video>
+<img id="src-img" style="display:none">
+
+<script id="vs" type="x-shader/x-vertex">
+    attribute vec2 p; varying vec2 uv;
+    void main() { uv = p * 0.5 + 0.5; uv.y = 1.0 - uv.y; gl_Position = vec4(p, 0, 1); }
+</script>
+
+<script id="fs" type="x-shader/x-fragment">
+    precision mediump float;
+    varying vec2 uv;
+    
+    uniform sampler2D t; uniform sampler2D prev;
+    uniform vec2 res; uniform vec2 srcRes; uniform float time;
+    
+    // Res
+    uniform int u_resMode; uniform float u_width; uniform float u_scale; uniform float u_blur;
+    
+    // Color
+    uniform int u_lut; uniform float u_mix;
+    uniform float u_lift; uniform float u_gamma; uniform float u_gain;
+    uniform float u_temp; uniform float u_tint; uniform float u_sat;
+    
+    // Pal
+    uniform int u_palMode; uniform vec3 u_pal[16]; uniform int u_palSize;
+    
+    // Dither
+    uniform int u_algo; uniform float u_amt; uniform float u_scl;
+    
+    // Post
+    uniform float u_edge; uniform float u_scan; uniform float u_bloom; uniform float u_ab; uniform float u_ghost;
+    
+    // Audio
+    uniform float u_audio; uniform float u_sens; uniform int u_aTarg;
+
+    float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+    float rand(vec2 n) { return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453); }
+    float bayer2(vec2 p) { return (mod(p.x,2.)+mod(p.y,2.)*2.)/4.; }
+    float bayer4(vec2 p) { float m[16]; m[0]=0.; m[1]=8.; m[2]=2.; m[3]=10.; m[4]=12.; m[5]=4.; m[6]=14.; m[7]=6.; m[8]=3.; m[9]=11.; m[10]=1.; m[11]=9.; m[12]=15.; m[13]=7.; m[14]=13.; m[15]=5.; int i=int(mod(p.x,4.))+int(mod(p.y,4.))*4; for(int k=0;k<16;k++) if(k==i) return m[k]/16.; return 0.5; }
+    float bayer8(vec2 p) { return (bayer4(p)*4. + bayer2(floor(p/4.)))/4.; }
+
+    // --- PROCEDURAL LANGUAGE ENGINE ---
+    float getChar(vec2 p, int type) {
+        vec2 cell = floor(p); vec2 sub = fract(p); float v = 0.0;
+        float rnd = rand(cell);
+        
+        if(type == 12) { // ENGLISH (Simulated)
+            // 3 bars, simple geometric shapes
+            float r = floor(rnd * 5.0);
+            if(r==0.0) { if(abs(sub.x-0.5)<0.1 || abs(sub.y-0.5)<0.1) v=1.0; } // +
+            else if(r==1.0) { if(abs(sub.x-0.5)<0.3 && abs(sub.y-0.5)<0.3 && (abs(sub.x-0.5)>0.15 || abs(sub.y-0.5)>0.15)) v=1.0; } // Box
+            else if(r==2.0) { if(abs(sub.x-sub.y)<0.1 || abs(sub.x-(1.0-sub.y))<0.1) v=1.0; } // X
+            else if(r==3.0) { if(sub.x>0.2 && sub.x<0.8 && sub.y>0.1 && sub.y<0.9) v=1.0; } // I
+            else { if(sub.x<0.5 && sub.y<0.5) v=1.0; if(sub.x>0.5 && sub.y>0.5) v=1.0; } // Dots
+        } 
+        else if(type == 13) { // KANA (Angular strokes)
+            float r = floor(rnd * 6.0);
+            vec2 c = sub - 0.5;
+            if(r==0.0) { if(c.y > -0.2 && c.x < 0.2) v=1.0; } // 7 shape
+            else if(r==1.0) { if(abs(c.x)<0.1 || abs(c.y+0.2)<0.1) v=1.0; } // T shape
+            else if(r==2.0) { if(length(c+vec2(0.1,0.1)) < 0.4 && length(c+vec2(0.1,0.1)) > 0.3) v=1.0; } // Curve
+            else if(r==3.0) { if(c.x+c.y < 0.1 && c.x+c.y > -0.1) v=1.0; } // Slash
+            else v = step(0.8, rand(sub)); // Noise dust
+        }
+        else if(type == 14) { // HANZI (Dense strokes)
+            // High frequency grid noise
+            if(sub.x > 0.1 && sub.x < 0.9 && sub.y > 0.1 && sub.y < 0.9) {
+                float n = rand(floor(sub * 3.0) + cell);
+                if(n > 0.5) v = 1.0;
+            }
+        }
+        else if(type == 15) { // RUNIC
+            if(abs(sub.x-0.5) < 0.05) v=1.0; // center line
+            if(rnd > 0.5) { if(abs(sub.y-sub.x-0.2)<0.05) v=1.0; }
+            if(rnd < 0.5) { if(abs(sub.y+sub.x-1.2)<0.05) v=1.0; }
+        }
+        else if(type == 16) { // BINARY
+            if(rnd > 0.5) { if(sub.x>0.4 && sub.x<0.6) v = 1.0; } 
+            else { vec2 c = sub - 0.5; if(length(c)>0.3 && length(c)<0.45) v = 1.0; }
+        }
+        return v;
+    }
+
+    vec3 nearest(vec3 c) {
+        float minD = 100.0; vec3 match = c;
+        for(int i=0; i<16; i++) { if(i >= u_palSize) break; float d = distance(c, u_pal[i]); if(d < minD) { minD = d; match = u_pal[i]; } }
+        return match;
+    }
+
+    vec3 applyLut(vec3 col, int id) {
+        vec3 c = col;
+        if(id==1) { c = pow(c, vec3(1.1)); c *= vec3(1.1, 1.0, 0.9); } // Portra
+        if(id==2) { c *= vec3(1.2, 1.05, 0.85); c = pow(c, vec3(0.95)); } // Gold
+        if(id==3) { c *= vec3(1.0, 1.1, 1.25); c = ((c-0.5)*1.3)+0.5; } // Velvia
+        if(id==4) { float g = luma(c); c = vec3(g); c = ((c-0.5)*1.2)+0.5; } // BW
+        if(id==5) { c += vec3(0.0, 0.05, 0.1); c = pow(c, vec3(0.9)); c*=1.1; } // Cine800
+        if(id==6) { float g=luma(c); c = mix(vec3(0.,0.15,0.25), vec3(1.,0.7,0.2), g); } // TealOrng
+        if(id==7) { c = vec3(0., luma(c)*1.2, 0.1); } // Matrix
+        if(id==8) { c = vec3(0.1, 0.3, luma(c)*1.4); } // Blade
+        if(id==9) { c.g *= 0.8; c.b *= 1.4; c.r*=1.1; c += vec3(0.1, 0., 0.2); } // Vapor
+        if(id==10) { float g=luma(c); c = vec3(g*1.5, g, 1.0-g); } // Thermal
+        if(id==11) { float g=luma(c); c = vec3(0., g, 0.) * vec3(0.5, 2.0, 0.5); } // Night
+        if(id==12) { c = 1.0 - c; } // Neg
+        if(id==13) { c *= vec3(1.3, 0.9, 0.6); } // Dune
+        return c;
+    }
+
+    void main() {
+        vec2 u = uv;
+        float aud = u_audio * u_sens;
+        if(u_aTarg == 0) u.x += (rand(vec2(time)) - 0.5) * aud * 0.1;
+
+        vec2 grid = srcRes;
+        if(u_resMode == 1) grid = vec2(u_width, u_width * (srcRes.y/srcRes.x));
+        if(u_resMode == 2) grid = srcRes / u_scale;
+        vec2 pix = floor(u * grid) / grid;
+        
+        vec3 col; float shift = u_ab * 0.002; if(u_aTarg == 1) shift += aud * 0.01;
+        if(shift > 0.0) { col.r = texture2D(t, pix + vec2(shift,0.0)).r; col.g = texture2D(t, pix).g; col.b = texture2D(t, pix - vec2(shift,0.0)).b; } 
+        else { col = texture2D(t, pix).rgb; }
+
+        // --- PRO COLOR PIPELINE ---
+        
+        // 1. Lift/Gamma/Gain
+        col = col * (u_gain + 0.001) + u_lift;
+        col = pow(abs(col), vec3(1.0 / (u_gamma + 0.001)));
+
+        // 2. Temp/Tint
+        col.r += u_temp * 0.1; col.b -= u_temp * 0.1;
+        col.g += u_tint * 0.1;
+
+        // 3. LUT Mix
+        if(u_lut > 0) {
+            vec3 lutCol = applyLut(col, u_lut);
+            col = mix(col, lutCol, u_mix);
+        }
+
+        // 4. Saturation (Luma Preserving)
+        float gr = luma(col);
+        col = mix(vec3(gr), col, u_sat);
+        
+        // --- DITHER ---
+        float map = 0.5; vec2 dp = u * grid / u_scl;
+        if(u_algo < 3) map = rand(dp) * 0.4 + 0.3;
+        else if(u_algo == 3) map = bayer2(dp);
+        else if(u_algo == 4) map = bayer4(dp);
+        else if(u_algo == 5) map = bayer8(dp);
+        else if(u_algo == 6) map = (bayer8(dp) + bayer4(dp/2.0)) * 0.5;
+        else if(u_algo == 7) map = rand(dp);
+        else if(u_algo == 9) { vec2 c=fract(dp)-0.5; map=length(c)*1.5; }
+        else if(u_algo == 10) map = abs(fract(dp.y)-0.5)*2.0;
+        else if(u_algo == 11) { vec2 c=floor(dp); vec2 f=fract(dp); float md=1.0; for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++) { vec2 n=vec2(float(x),float(y)); vec2 p=rand(c+n)>0.0?vec2(rand(c+n),rand(c+n+1.0)):vec2(0.5); float d=length(n+p-f); md=min(md,d); } map=md; }
+        else if(u_algo >= 12) { float txt = getChar(dp, u_algo); map = 1.0 - txt; if(txt > 0.1) col = col * 1.5; }
+        
+        float thresh = map; if(u_aTarg == 2) thresh = mix(thresh, rand(dp), aud);
+        vec3 dCol = col + (thresh - 0.5) * u_amt;
+
+        vec3 final = dCol;
+        if(u_palMode == 1 || u_palMode == 2) final = nearest(dCol);
+        if(u_palMode == 3) final = vec3(step(0.5, luma(dCol)));
+
+        if(u_edge > 0.0) { vec2 d = vec2(1.0/grid.x, 1.0/grid.y); float gx = luma(texture2D(t, pix+vec2(d.x,0.)).rgb) - luma(texture2D(t, pix-vec2(d.x,0.)).rgb); float gy = luma(texture2D(t, pix+vec2(0.,d.y)).rgb) - luma(texture2D(t, pix-vec2(0.,d.y)).rgb); final += vec3(length(vec2(gx, gy))) * u_edge; }
+        if(u_scan > 0.0) final *= 1.0 - (u_scan * 0.5 * sin(uv.y * res.y * 3.14));
+        if(u_bloom > 0.0) { vec3 b = texture2D(t, pix + vec2(0.01)).rgb + texture2D(t, pix - vec2(0.01)).rgb; final += b * u_bloom * 0.2; }
+
+        vec3 old = texture2D(prev, uv).rgb;
+        final = mix(final, old, u_ghost);
+        gl_FragColor = vec4(final, 1.0);
+    }
+</script>
+
+<script>
+const PALS = {
+    'COBOL_AMBER': ['000000','221100','ffb300','ffcc66'], 'PHOSPHOR_GRN': ['000000','001100','00ff00','ccffcc'],
+    'GAMEBOY': ['0f380f','306230','8bac0f','9bbc0f'], 'MAC_II': ['000000','ffffff'],
+    'OBRA_DINN': ['1c1c1c','3d4d48','627870','e0f8cf'], 'VAPOR': ['110022','440055','00ccff','ff99ff'],
+    'CYBER': ['050505','ffff00','00ffff','ff0055'], 'NES': ['000000','0000fc','fc0000','fcfc00','fc00fc','00fcfc','fcfcfc'], 
+    'CGA_0': ['000000','00aaaa','aa0000','aaaa00'], 'COMMODORE': ['000000','ffffff','880000','aaffee','cc44cc','00cc55','0000aa','eeee77','dd8855','664400','ff7777','333333','777777','aaff66','0088ff','bbbbbb']
+};
+
+const S = { gl: null, prog: null, tex: { curr: null, prev: null }, media: null, type: null, w: 0, h: 0, pal: [], rec: null, chunks: [], audio: { ctx: null, node: null, data: null }, batch: [] };
+
+window.onload = () => {
+    initGL();
+    bindUI();
+    renderPalList();
+    setPal(PALS.COBOL_AMBER);
+    loadDefault();
+    loop();
+};
+
+function initGL() {
+    const c = document.getElementById('c');
+    const gl = c.getContext('webgl', {preserveDrawingBuffer:true, alpha:false});
+    S.gl = gl;
+    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, document.getElementById('vs').textContent); gl.compileShader(vs);
+    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, document.getElementById('fs').textContent); gl.compileShader(fs);
+    if(!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(fs)); alert("SHADER ERROR"); }
+    S.prog = gl.createProgram(); gl.attachShader(S.prog, vs); gl.attachShader(S.prog, fs); gl.linkProgram(S.prog); gl.useProgram(S.prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(gl.getAttribLocation(S.prog, 'p')); gl.vertexAttribPointer(gl.getAttribLocation(S.prog, 'p'), 2, gl.FLOAT, false, 0, 0);
+    S.tex.curr = mkTex(gl); S.tex.prev = mkTex(gl);
+}
+
+function mkTex(gl) {
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return t;
+}
+
+function bindUI() {
+    document.querySelectorAll('.sec-head').forEach(el => el.onclick = () => el.nextElementSibling.classList.toggle('collapsed'));
+    document.querySelectorAll('input[type=range]').forEach(el => el.oninput = e => { const d = document.getElementById('v-'+e.target.id); if(d) d.innerText = e.target.value; });
+    document.getElementById('f-in').onchange = e => loadFile(e.target.files[0]);
+    document.getElementById('b-in').onchange = e => { S.batch = Array.from(e.target.files); document.getElementById('btn-batch').innerText = `BATCH RUN (${S.batch.length})`; document.getElementById('btn-batch').disabled = false; };
+}
+
+function renderPalList() {
+    const g = document.getElementById('pal-list');
+    Object.keys(PALS).forEach(k => {
+        PALS[k].forEach(h => { const d = document.createElement('div'); d.className = 'pal-cell'; d.style.background = '#'+h; d.title = k; d.onclick = () => { setPal(PALS[k]); document.getElementById('pal-name').innerText = k; }; g.appendChild(d); });
+    });
+}
+
+function setPal(colors) { S.pal = colors.map(h => [parseInt(h.substr(0,2),16)/255, parseInt(h.substr(2,2),16)/255, parseInt(h.substr(4,2),16)/255]); }
+function uiUpdate() {
+    const r = document.getElementById('res-mode').value; document.getElementById('ui-width').style.display = r==='1'?'block':'none'; document.getElementById('ui-scale').style.display = r==='2'?'block':'none';
+    const p = document.getElementById('pal-mode').value; document.getElementById('ui-pal-lib').style.display = p==='1'?'block':'none'; document.getElementById('ui-pal-auto').style.display = p==='2'?'block':'none';
+}
+
+function loadDefault() {
+    const c = document.createElement('canvas'); c.width=640; c.height=360; const x = c.getContext('2d');
+    x.fillStyle='#000'; x.fillRect(0,0,640,360); x.fillStyle='#444'; x.font='bold 30px monospace'; x.textAlign='center'; x.fillText("SIGNAL_LOST", 320, 180);
+    S.media = c; S.type = 'img'; resize();
+}
+
+function loadFile(f) {
+    if(!f) return; const u = URL.createObjectURL(f);
+    if(f.type.startsWith('video')) { S.media = document.getElementById('src-vid'); S.media.src = u; S.media.play(); S.type = 'vid'; } 
+    else { const i = document.getElementById('src-img'); i.onload = () => { S.media=i; resize(); }; i.src = u; S.type = 'img'; }
+}
+
+async function initCam() {
+    try { const s = await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720}}); S.media = document.getElementById('src-vid'); S.media.srcObject = s; S.media.play(); S.type = 'vid'; } catch(e){ alert("CAM ACCESS DENIED"); }
+}
+
+function resize() {
+    if(!S.media) return;
+    S.w = S.media.videoWidth || S.media.naturalWidth || S.media.width; S.h = S.media.videoHeight || S.media.naturalHeight || S.media.height;
+    if(S.w === 0 || S.h === 0) return;
+    
+    // HARD LOCK ASPECT RATIO
+    const c = document.getElementById('c'); const box = document.getElementById('viewport');
+    const aspect = S.w / S.h; let dw = box.clientWidth; let dh = box.clientHeight;
+    
+    // Calculate fit
+    if(dw/dh > aspect) dw = dh * aspect; else dh = dw / aspect;
+    
+    // Set CANVAS to exact source pixels (for export quality)
+    c.width = S.w; c.height = S.h;
+    
+    // Set STYLE to scaled fit (for display)
+    c.style.width = dw + 'px'; c.style.height = dh + 'px';
+    
+    S.gl.viewport(0, 0, S.w, S.h);
+}
+
+function extractPal() {
+    if(!S.media) return; const k = parseInt(document.getElementById('k').value);
+    const c = document.createElement('canvas'); const x = c.getContext('2d'); c.width=50; c.height=50; x.drawImage(S.media, 0,0,50,50); const d = x.getImageData(0,0,50,50).data;
+    const cols = []; for(let i=0; i<k; i++) { const idx = Math.floor(Math.random()*(d.length/4))*4; cols.push([d[idx]/255, d[idx+1]/255, d[idx+2]/255]); } S.pal = cols;
+}
+
+async function initAudio() {
+    try { const s = await navigator.mediaDevices.getUserMedia({audio:true}); const ac = new AudioContext(); const src = ac.createMediaStreamSource(s); const an = ac.createAnalyser(); an.fftSize = 64; src.connect(an); S.audio = { ctx:ac, node:an, data:new Uint8Array(an.frequencyBinCount) }; const v = document.getElementById('audio-viz'); v.innerHTML = ''; for(let i=0; i<32; i++) { const b = document.createElement('div'); b.className = 'bar'; v.appendChild(b); } } catch(e) { alert("MIC ERROR"); }
+}
+
+function loop() {
+    requestAnimationFrame(loop);
+    if(!S.gl || !S.media) return;
+    
+    if(S.type==='vid' && S.media.readyState >= 2 && S.media.videoWidth !== S.w) resize();
+    if(S.gl.canvas.width !== S.w) resize();
+
+    let aud = 0;
+    if(S.audio.node) { S.audio.node.getByteFrequencyData(S.audio.data); const avg = S.audio.data.reduce((a,b)=>a+b) / S.audio.data.length; aud = avg / 255.0; const bars = document.getElementsByClassName('bar'); if(bars.length) { for(let i=0;i<32;i++) bars[i].style.height = (S.audio.data[i]/255*100)+'%'; } }
+
+    const gl = S.gl; const p = S.prog;
+    const g = id => document.getElementById(id).value; const gf = id => parseFloat(g(id)); const gi = id => parseInt(g(id));
+
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, S.tex.curr);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, S.media);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, S.tex.prev);
+
+    gl.uniform1i(gl.getUniformLocation(p, "t"), 0); gl.uniform1i(gl.getUniformLocation(p, "prev"), 1);
+    gl.uniform2f(gl.getUniformLocation(p, "res"), gl.canvas.width, gl.canvas.height); gl.uniform2f(gl.getUniformLocation(p, "srcRes"), S.w, S.h);
+    gl.uniform1f(gl.getUniformLocation(p, "time"), performance.now()/1000);
+
+    gl.uniform1i(gl.getUniformLocation(p, "u_resMode"), gi('res-mode')); gl.uniform1f(gl.getUniformLocation(p, "u_width"), gf('width')); gl.uniform1f(gl.getUniformLocation(p, "u_scale"), gf('scale')); gl.uniform1f(gl.getUniformLocation(p, "u_blur"), gf('blur'));
+    
+    // Color
+    gl.uniform1i(gl.getUniformLocation(p, "u_lut"), gi('lut')); gl.uniform1f(gl.getUniformLocation(p, "u_mix"), gf('mix'));
+    gl.uniform1f(gl.getUniformLocation(p, "u_lift"), gf('lift')); gl.uniform1f(gl.getUniformLocation(p, "u_gamma"), gf('gamma')); gl.uniform1f(gl.getUniformLocation(p, "u_gain"), gf('gain'));
+    gl.uniform1f(gl.getUniformLocation(p, "u_temp"), gf('temp')); gl.uniform1f(gl.getUniformLocation(p, "u_tint"), gf('tint')); gl.uniform1f(gl.getUniformLocation(p, "u_sat"), gf('sat'));
+
+    gl.uniform1i(gl.getUniformLocation(p, "u_palMode"), gi('pal-mode'));
+    const flat = []; for(let i=0; i<16; i++) { if(i<S.pal.length) flat.push(...S.pal[i]); else flat.push(0,0,0); } gl.uniform3fv(gl.getUniformLocation(p, "u_pal"), flat); gl.uniform1i(gl.getUniformLocation(p, "u_palSize"), S.pal.length);
+    
+    gl.uniform1i(gl.getUniformLocation(p, "u_algo"), gi('algo')); gl.uniform1f(gl.getUniformLocation(p, "u_amt"), gf('amt')); gl.uniform1f(gl.getUniformLocation(p, "u_scl"), gf('scl'));
+    
+    gl.uniform1f(gl.getUniformLocation(p, "u_edge"), gf('edge')); gl.uniform1f(gl.getUniformLocation(p, "u_scan"), gf('scan')); gl.uniform1f(gl.getUniformLocation(p, "u_bloom"), gf('bloom')); gl.uniform1f(gl.getUniformLocation(p, "u_ab"), gf('ab')); gl.uniform1f(gl.getUniformLocation(p, "u_ghost"), gf('ghost'));
+    gl.uniform1f(gl.getUniformLocation(p, "u_audio"), aud); gl.uniform1f(gl.getUniformLocation(p, "u_sens"), gf('sens')); gl.uniform1i(gl.getUniformLocation(p, "u_aTarg"), gi('a-targ'));
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindTexture(gl.TEXTURE_2D, S.tex.prev); gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, S.w, S.h, 0);
+}
+
+function saveImg(fmt) { const a = document.createElement('a'); a.download = `DITHER_PRO_${Date.now()}.${fmt}`; a.href = document.getElementById('c').toDataURL('image/'+fmt, 0.9); a.click(); }
+function toggleRec() { const btn = document.getElementById('btn-rec'); if(S.rec && S.rec.state === 'recording') { S.rec.stop(); btn.innerText = "START RECORDING"; return; } const stream = document.getElementById('c').captureStream(30); const fmt = document.getElementById('vid-fmt').value; let mime = fmt==='mp4' ? 'video/mp4' : 'video/webm'; if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm'; S.rec = new MediaRecorder(stream, {mimeType: mime}); S.chunks = []; S.rec.ondataavailable = e => S.chunks.push(e.data); S.rec.onstop = () => { const b = new Blob(S.chunks, {type:mime}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `REC_${Date.now()}.${fmt==='mp4'?'mp4':'webm'}`; a.click(); }; S.rec.start(); btn.innerText = "■ STOP RECORDING"; }
+function rndLeft() { const r = (n,x) => Math.random()*(x-n)+n; document.getElementById('lift').value=r(-0.1,0.1); document.getElementById('gamma').value=r(0.8,1.2); document.getElementById('gain').value=r(0.8,1.2); document.getElementById('lut').value = Math.floor(r(0,13)); if(document.getElementById('pal-mode').value == '1') { const k = Object.keys(PALS); const nk = k[Math.floor(Math.random()*k.length)]; setPal(PALS[nk]); document.getElementById('pal-name').innerText = nk; } }
+function rndRight() { const r = (n,x) => Math.random()*(x-n)+n; document.getElementById('algo').value = Math.floor(r(0,16)); document.getElementById('amt').value = r(0.5, 1.2); document.getElementById('scl').value = Math.floor(r(1, 4)); document.getElementById('edge').value = Math.random()>0.7 ? r(0,1) : 0; document.getElementById('ab').value = Math.random()>0.6 ? r(0,5) : 0; document.getElementById('scan').value = Math.random()>0.5 ? r(0,0.5) : 0; }
+async function runBatch() { if(!S.batch.length) return; const btn = document.getElementById('btn-batch'); const loading = document.getElementById('loading'); btn.disabled = true; loading.style.display = 'block'; for(let i=0; i<S.batch.length; i++) { await new Promise(resolve => { const img = new Image(); img.onload = () => { S.media = img; S.type = 'img'; resize(); setTimeout(() => { loop(); saveImg('png'); resolve(); }, 200); }; img.src = URL.createObjectURL(S.batch[i]); }); } S.batch = []; btn.innerText = "BATCH RUN (0)"; loading.style.display = 'none'; }
+</script>
+</body>
+</html>
