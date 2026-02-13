@@ -1,7 +1,8 @@
 DITHER PRO // ULTIMATE
 
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/dPQaT50aZWI?si=HkT3gQtNOV7aD1MT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[<iframe width="560" height="315" src="https://www.youtube.com/embed/dPQaT50aZWI?si=HkT3gQtNOV7aD1MT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+](https://youtu.be/dPQaT50aZWI?si=4k5s1q4JWMiFhkhE)
 
 A high-performance, single-file WebGL workstation for retro image processing, dithering, and professional color grading. This tool runs entirely in the browser using the GPU, requiring no installation or external dependencies.
 
